@@ -252,15 +252,156 @@ function drawScore() {
     }
 }
 
+// Touch controls
+let touchStartX = null;
+let touchStartY = null;
+let lastTouchDirection = null;
+const SWIPE_THRESHOLD = 30; // Minimum swipe distance to trigger movement
+
+document.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+});
+
+document.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!touchStartX || !touchStartY) return;
+
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+    
+    const diffX = touchX - touchStartX;
+    const diffY = touchY - touchStartY;
+    
+    // Only change direction if swipe is long enough
+    if (Math.abs(diffX) < SWIPE_THRESHOLD && Math.abs(diffY) < SWIPE_THRESHOLD) {
+        return;
+    }
+
+    // Reset all keys
+    Object.keys(keys).forEach(key => keys[key] = false);
+    
+    // Determine swipe direction
+    let newDirection = null;
+    if (Math.abs(diffX) > Math.abs(diffY)) {
+        // Horizontal swipe
+        if (diffX > 0) {
+            if (isTwoPlayerMode && lastTouchX < canvas.width/2) {
+                keys.d = true;
+            } else {
+                keys.ArrowRight = true;
+            }
+            newDirection = 'right';
+        } else {
+            if (isTwoPlayerMode && lastTouchX < canvas.width/2) {
+                keys.a = true;
+            } else {
+                keys.ArrowLeft = true;
+            }
+            newDirection = 'left';
+        }
+    } else {
+        // Vertical swipe
+        if (diffY > 0) {
+            if (isTwoPlayerMode && lastTouchX < canvas.width/2) {
+                keys.s = true;
+            } else {
+                keys.ArrowDown = true;
+            }
+            newDirection = 'down';
+        } else {
+            if (isTwoPlayerMode && lastTouchX < canvas.width/2) {
+                keys.w = true;
+            } else {
+                keys.ArrowUp = true;
+            }
+            newDirection = 'up';
+        }
+    }
+
+    // Update start position for continuous movement
+    if (newDirection !== lastTouchDirection) {
+        touchStartX = touchX;
+        touchStartY = touchY;
+        lastTouchDirection = newDirection;
+    }
+});
+
+document.addEventListener('touchend', () => {
+    touchStartX = null;
+    touchStartY = null;
+    lastTouchDirection = null;
+    // Reset all keys
+    Object.keys(keys).forEach(key => keys[key] = false);
+});
+
+// Add virtual controls for two-player mode
+function addVirtualControls() {
+    const controlsDiv = document.createElement('div');
+    controlsDiv.id = 'virtual-controls';
+    controlsDiv.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 20px;
+        z-index: 1000;
+    `;
+
+    if (isTwoPlayerMode) {
+        // Add player indicators
+        const playerIndicator = document.createElement('div');
+        playerIndicator.style.cssText = `
+            position: fixed;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 16px;
+            z-index: 1000;
+        `;
+        playerIndicator.textContent = 'Left side: Red (WASD) | Right side: Yellow (Arrows)';
+        document.body.appendChild(playerIndicator);
+    }
+
+    document.body.appendChild(controlsDiv);
+}
+
+// Add to the start of the game
+function initGame() {
+    addVirtualControls();
+    // Existing initialization code...
+}
+
+// Modify the showModeSelection function to be touch-friendly
 function showModeSelection() {
     ctx.fillStyle = 'white';
     ctx.font = '24px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Press SPACE to toggle game mode', canvas.width/2, canvas.height/2 - 30);
+    ctx.fillText('Tap here to toggle game mode', canvas.width/2, canvas.height/2 - 30);
     ctx.fillText(`Current mode: ${isTwoPlayerMode ? 'Two Players' : 'Single Player'}`, canvas.width/2, canvas.height/2 + 10);
     ctx.font = '18px Arial';
-    ctx.fillText('Press ENTER to start', canvas.width/2, canvas.height/2 + 50);
+    ctx.fillText('Tap here to start', canvas.width/2, canvas.height/2 + 50);
 }
+
+// Add touch event for game start
+canvas.addEventListener('touchstart', (e) => {
+    if (!gameStarted) {
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const y = touch.clientY - rect.top;
+        
+        if (y < canvas.height/2) {
+            isTwoPlayerMode = !isTwoPlayerMode;
+        } else {
+            gameStarted = true;
+            initGame();
+        }
+        e.preventDefault();
+    }
+});
 
 // Add this new function to handle movement
 function handleMovement() {
